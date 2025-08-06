@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Certificate Tracker</title>
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>🎓 Certificate Tracker</h1>
+        <p>Cek status sertifikat karyawan</p>
+      </div>
+
+      <div class="search-section">
+        <div class="search-container">
+          <input
+            type="text"
+            id="searchInput"
+            class="search-input"
+            placeholder="Masukkan nama karyawan..."
+          />
+          <button id="searchBtn" class="search-btn" disabled>🔍 Cari</button>
+        </div>
+      </div>
+
+      <div id="resultsSection" class="results-section"></div>
+    </div>
+
+    <script src="js/script.js"></script>
+  </body>
+</html>
