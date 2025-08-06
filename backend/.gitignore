@@ -1,0 +1,12 @@
+# Node modules
+node_modules/
+
+# Env
+.env
+
+# VSCode settings
+.vscode/
+
+# System
+.DS_Store
+Thumbs.db
