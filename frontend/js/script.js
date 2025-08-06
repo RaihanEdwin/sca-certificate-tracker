@@ -47,9 +47,8 @@ function showInitialMessage() {
   if (resultsSection) {
     resultsSection.innerHTML = `
             <div class="info-message">
-                <h3>🎯 Selamat datang di Certificate Tracker!</h3>
-                <p>Masukkan nama karyawan untuk mencari sertifikat yang dimiliki.</p>
-                <p><strong>Contoh:</strong> Ketik "REZA", "IMAM", atau "ROYYAN"</p>
+                <h3>🎯 Welcome to the SCA Certificate Tracker!</h3>
+                <p>Please enter the crew member's name to search for their certificates.</p>
             </div>
         `;
   }
@@ -134,6 +133,7 @@ function displayResults(data) {
 
   if (count > 0) {
     html += `
+          <div class="results-table-wrapper">    
             <table class="results-table">
                 <thead>
                     <tr>
@@ -171,6 +171,7 @@ function displayResults(data) {
     html += `
                 </tbody>
             </table>
+          </div>
         `;
   }
 

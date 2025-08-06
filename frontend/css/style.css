@@ -135,6 +135,12 @@ body {
   font-size: 14px;
 }
 
+.results-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 .results-table {
   width: 100%;
   border-collapse: collapse;
