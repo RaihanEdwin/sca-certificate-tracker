@@ -250,52 +250,34 @@ class MondayClient {
       });
     }
 
-    // Enhanced Fallback: Hanya jika TIDAK ada linked columns
-    let hasLinkedExpiryColumn = false;
+    // Enhanced Fallback: Coba semua kemungkinan mapping berdasarkan column ID juga
     if (certificate.expiredDate === "-" && item.column_values) {
       console.log(
-        `⚠️ No expiry date found via title mapping, checking for linked columns...`
+        `⚠️ No expiry date found via title mapping, trying alternative methods...`
       );
 
-      // Cek dulu apakah ada linked expiry column
+      // Coba cari berdasarkan pattern umum date columns
       item.column_values.forEach((column) => {
-        if (
-          this.isExpiryDateColumn(column.column?.title || "", column.id) &&
-          this.isLinkedColumn(column)
-        ) {
-          hasLinkedExpiryColumn = true;
-          console.log(`🔗 Found linked expiry column: ${column.column?.title}`);
+        if (certificate.expiredDate === "-") {
+          // Cek jika ada tanggal di masa depan (kemungkinan expiry date)
+          const testDate = this.extractDate(column);
+          if (testDate !== "-" && this.isFutureDate(testDate)) {
+            certificate.expiredDate = testDate;
+            console.log(
+              `✅ Found future date as expiry: ${certificate.expiredDate} from column ${column.column?.title}`
+            );
+          }
         }
       });
-
-      if (!hasLinkedExpiryColumn) {
-        // Coba cari berdasarkan pattern umum date columns
-        item.column_values.forEach((column) => {
-          if (certificate.expiredDate === "-") {
-            // Cek jika ada tanggal di masa depan (kemungkinan expiry date)
-            const testDate = this.extractDate(column);
-            if (testDate !== "-" && this.isFutureDate(testDate)) {
-              certificate.expiredDate = testDate;
-              console.log(
-                `✅ Found future date as expiry: ${certificate.expiredDate} from column ${column.column?.title}`
-              );
-            }
-          }
-        });
-      }
     }
 
-    // Fallback untuk hardcoded data HANYA jika tidak ada linked column
-    if (certificate.expiredDate === "-" && !hasLinkedExpiryColumn) {
+    // Fallback untuk hardcoded data berdasarkan subjectTitle
+    if (certificate.expiredDate === "-") {
       certificate.expiredDate = this.getHardcodedExpiryDate(
         certificate.subjectTitle
       );
       console.log(
         `📅 Using hardcoded date for ${certificate.subjectTitle}: ${certificate.expiredDate}`
-      );
-    } else if (hasLinkedExpiryColumn && certificate.expiredDate === "-") {
-      console.log(
-        `🔗 ${certificate.subjectTitle} has linked expiry column but no data - keeping empty`
       );
     }
 
