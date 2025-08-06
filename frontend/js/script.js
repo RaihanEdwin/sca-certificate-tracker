@@ -183,10 +183,14 @@ function getStatusClass(status) {
 
   const statusLower = status.toLowerCase();
 
-  if (statusLower.includes("expired") && !statusLower.includes("expiring")) {
+  if (
+    statusLower.includes("expired") &&
+    !statusLower.includes("expiring soon")
+  ) {
     return "status-expired";
   } else if (
     statusLower.includes("expiring") ||
+    statusLower.includes("expiry soon") || // ← tambahkan ini
     statusLower.includes("akan expired")
   ) {
     return "status-expiring";

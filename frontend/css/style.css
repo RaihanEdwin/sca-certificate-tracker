@@ -187,8 +187,9 @@ body {
 }
 
 .status-expiring {
-  background: #fff3cd;
-  color: #856404;
+  background-color: yellow;
+  color: black;
+  font-weight: bold;
 }
 
 .status-expired {
