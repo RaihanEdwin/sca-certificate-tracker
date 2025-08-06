@@ -1,0 +1,16 @@
+# Node modules (hanya backend)
+backend/node_modules/
+
+# Env files
+backend/.env
+.env
+
+# Logs
+*.log
+
+# System files
+.DS_Store
+Thumbs.db
+
+# VSCode settings
+.vscode/
