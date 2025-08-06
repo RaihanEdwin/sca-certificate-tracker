@@ -13,7 +13,7 @@
     "monday.com",
     "tracker"
   ],
-  "author": "Your Name",
+  "author": "Raihan Edwin",
   "license": "ISC",
   "dependencies": {
     "express": "^4.18.2",
