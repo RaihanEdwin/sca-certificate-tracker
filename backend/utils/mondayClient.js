@@ -41,7 +41,7 @@ class MondayClient {
 
   async getAllCertificates() {
     const query = `
-      query GetBoardItems($boardId: [ID!]) {  
+      query GetBoardGroupsAndItems($boardId: [ID!]) {  
         boards(ids: $boardId) {
           name
           columns {
@@ -49,40 +49,13 @@ class MondayClient {
             title
             type
           }
-          items_page(limit: 100) {  
-            items {  
-              id  
+          groups {  
+            id
+            title
+            items {
+              id
               name
-              subitems {
-                id
-                name
-                column_values {
-                  id
-                  value
-                  text
-                  column {
-                    id
-                    title
-                    type
-                  }
-                  ... on StatusValue {
-                    text
-                    index
-                  }
-                  ... on DateValue {
-                    date
-                    text
-                  }
-                  ... on LinkValue {
-                    url
-                    text
-                  }
-                  ... on TextValue {
-                    text
-                  }
-                }
-              }
-              column_values {  
+              column_values {
                 id
                 value
                 text
@@ -106,10 +79,10 @@ class MondayClient {
                 ... on TextValue {
                   text
                 }
-              }  
-            }  
-          }  
-        }  
+              }
+            }
+          }
+        }
       }
     `;
 
@@ -132,18 +105,15 @@ class MondayClient {
         }))
       );
 
-      if (
-        result.boards[0].items_page &&
-        result.boards[0].items_page.items.length > 0
-      ) {
-        const firstItem = result.boards[0].items_page.items[0];
-        console.log("First Item:", firstItem.name);
+      if (result.boards[0].groups && result.boards[0].groups.length > 0) {
+        const firstGroup = result.boards[0].groups[0];
+        console.log("First Group:", firstGroup.title);
 
-        if (firstItem.subitems && firstItem.subitems.length > 0) {
-          const firstSubitem = firstItem.subitems[0];
-          console.log("First Subitem:", firstSubitem.name);
-          console.log("Subitem Columns Detail:");
-          firstSubitem.column_values.forEach((col) => {
+        if (firstGroup.items && firstGroup.items.length > 0) {
+          const firstItem = firstGroup.items[0];
+          console.log("First Item in Group:", firstItem.name);
+          console.log("Item Columns Detail:");
+          firstItem.column_values.forEach((col) => {
             console.log(
               `  - ID: ${col.id}, Title: ${col.column?.title}, Type: ${col.column?.type}, Value: ${col.value}, Text: ${col.text}`
             );
@@ -161,28 +131,21 @@ class MondayClient {
       const data = await this.getAllCertificates();
       const results = [];
 
-      if (data.boards && data.boards[0] && data.boards[0].items_page) {
-        const items = data.boards[0].items_page.items;
+      if (data.boards && data.boards[0] && data.boards[0].groups) {
+        const groups = data.boards[0].groups;
 
-        items.forEach((item) => {
-          // Cek jika nama item cocok dengan pencarian
-          if (item.name.toLowerCase().includes(searchTerm.toLowerCase())) {
-            // Jika item memiliki subitems (sertifikat)
-            if (item.subitems && item.subitems.length > 0) {
-              item.subitems.forEach((subitem) => {
+        groups.forEach((group) => {
+          // Cek jika judul grup (nama kru) cocok dengan pencarian
+          if (group.title.toLowerCase().includes(searchTerm.toLowerCase())) {
+            // Proses setiap item (sertifikat) di dalam grup yang cocok
+            if (group.items && group.items.length > 0) {
+              group.items.forEach((item) => {
                 const certificate = this.processItemToCertificate(
-                  subitem,
-                  item.name
+                  item,
+                  group.title
                 );
                 results.push(certificate);
               });
-            } else {
-              // Jika tidak ada subitems, proses item langsung
-              const certificate = this.processItemToCertificate(
-                item,
-                item.name
-              );
-              results.push(certificate);
             }
           }
         });
@@ -207,7 +170,7 @@ class MondayClient {
     };
 
     console.log(
-      `\n=== Processing Certificate: ${certificate.subjectTitle} ===`
+      `\n=== Processing Certificate: ${certificate.subjectTitle} for ${ownerName} ===`
     );
 
     // Process column values dengan mapping yang lebih fleksibel
