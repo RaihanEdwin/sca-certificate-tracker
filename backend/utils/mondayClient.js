@@ -41,7 +41,7 @@ class MondayClient {
 
   async getAllCertificates() {
     const query = `
-      query GetBoardGroupsAndItems($boardId: [ID!]) {  
+      query GetBoardItemsWithGroups($boardId: [ID!]) {  
         boards(ids: $boardId) {
           name
           columns {
@@ -49,12 +49,14 @@ class MondayClient {
             title
             type
           }
-          groups {  
-            id
-            title
+          items_page(limit: 100) {  
             items {
               id
               name
+              group {
+                id
+                title
+              }
               column_values {
                 id
                 value
@@ -104,21 +106,19 @@ class MondayClient {
           type: col.type,
         }))
       );
-
-      if (result.boards[0].groups && result.boards[0].groups.length > 0) {
-        const firstGroup = result.boards[0].groups[0];
-        console.log("First Group:", firstGroup.title);
-
-        if (firstGroup.items && firstGroup.items.length > 0) {
-          const firstItem = firstGroup.items[0];
-          console.log("First Item in Group:", firstItem.name);
-          console.log("Item Columns Detail:");
-          firstItem.column_values.forEach((col) => {
-            console.log(
-              `  - ID: ${col.id}, Title: ${col.column?.title}, Type: ${col.column?.type}, Value: ${col.value}, Text: ${col.text}`
-            );
-          });
-        }
+      if (
+        result.boards[0].items_page &&
+        result.boards[0].items_page.items.length > 0
+      ) {
+        const firstItem = result.boards[0].items_page.items[0];
+        console.log("First Item:", firstItem.name);
+        console.log("Item belongs to Group:", firstItem.group?.title);
+        console.log("Item Columns Detail:");
+        firstItem.column_values.forEach((col) => {
+          console.log(
+            `  - ID: ${col.id}, Title: ${col.column?.title}, Type: ${col.column?.type}, Value: ${col.value}, Text: ${col.text}`
+          );
+        });
       }
     }
     console.log("=== END DEBUG ===");
@@ -131,22 +131,19 @@ class MondayClient {
       const data = await this.getAllCertificates();
       const results = [];
 
-      if (data.boards && data.boards[0] && data.boards[0].groups) {
-        const groups = data.boards[0].groups;
+      if (data.boards && data.boards[0] && data.boards[0].items_page) {
+        const items = data.boards[0].items_page.items;
 
-        groups.forEach((group) => {
+        items.forEach((item) => {
           // Cek jika judul grup (nama kru) cocok dengan pencarian
-          if (group.title.toLowerCase().includes(searchTerm.toLowerCase())) {
-            // Proses setiap item (sertifikat) di dalam grup yang cocok
-            if (group.items && group.items.length > 0) {
-              group.items.forEach((item) => {
-                const certificate = this.processItemToCertificate(
-                  item,
-                  group.title
-                );
-                results.push(certificate);
-              });
-            }
+          if (
+            item.group?.title.toLowerCase().includes(searchTerm.toLowerCase())
+          ) {
+            const certificate = this.processItemToCertificate(
+              item,
+              item.group.title
+            );
+            results.push(certificate);
           }
         });
       }
@@ -173,7 +170,6 @@ class MondayClient {
       `\n=== Processing Certificate: ${certificate.subjectTitle} for ${ownerName} ===`
     );
 
-    // Process column values dengan mapping yang lebih fleksibel
     if (item.column_values) {
       item.column_values.forEach((column, index) => {
         const columnTitle = column.column?.title || "";
@@ -183,7 +179,6 @@ class MondayClient {
           `Column ${index}: "${columnTitle}" (ID: ${columnId}) = Value: "${column.value}" | Text: "${column.text}"`
         );
 
-        // Mapping berdasarkan title yang lebih fleksibel
         if (this.isExpiryDateColumn(columnTitle, columnId)) {
           const extractedDate = this.extractDate(column);
           if (extractedDate !== "-") {
@@ -197,7 +192,6 @@ class MondayClient {
         } else if (this.isCertificateColumn(columnTitle, columnId)) {
           certificate.certificateLink = this.extractCertificateLink(column);
         } else if (this.isCrewTrackingColumn(columnTitle, columnId)) {
-          // Ini mungkin nama pemilik sertifikat
           if (column.text && column.text.trim() !== "") {
             certificate.name = column.text;
           }
@@ -213,16 +207,13 @@ class MondayClient {
       });
     }
 
-    // Enhanced Fallback: Coba semua kemungkinan mapping berdasarkan column ID juga
     if (certificate.expiredDate === "-" && item.column_values) {
       console.log(
         `⚠️ No expiry date found via title mapping, trying alternative methods...`
       );
 
-      // Coba cari berdasarkan pattern umum date columns
       item.column_values.forEach((column) => {
         if (certificate.expiredDate === "-") {
-          // Cek jika ada tanggal di masa depan (kemungkinan expiry date)
           const testDate = this.extractDate(column);
           if (testDate !== "-" && this.isFutureDate(testDate)) {
             certificate.expiredDate = testDate;
@@ -234,7 +225,6 @@ class MondayClient {
       });
     }
 
-    // Fallback untuk hardcoded data berdasarkan subjectTitle
     if (certificate.expiredDate === "-") {
       certificate.expiredDate = this.getHardcodedExpiryDate(
         certificate.subjectTitle
@@ -244,7 +234,6 @@ class MondayClient {
       );
     }
 
-    // Fallback untuk status jika masih default
     if (certificate.status === "VALID" && certificate.expiredDate !== "-") {
       certificate.status = this.calculateStatusFromDate(
         certificate.expiredDate
@@ -261,7 +250,6 @@ class MondayClient {
     return certificate;
   }
 
-  // Helper methods untuk column detection
   isExpiryDateColumn(title, id) {
     const expiryKeywords = ["expiry", "expired", "expire", "due", "end"];
     return expiryKeywords.some((keyword) =>
@@ -297,7 +285,6 @@ class MondayClient {
   }
 
   isLinkedColumn(column) {
-    // Deteksi kolom yang di-link dari board lain
     if (
       column.column?.type === "board-relation" ||
       column.column?.type === "lookup" ||
@@ -306,7 +293,6 @@ class MondayClient {
       return true;
     }
 
-    // Cek jika value menunjukkan linkage
     if (column.value && typeof column.value === "string") {
       try {
         const parsed = JSON.parse(column.value);
@@ -325,7 +311,6 @@ class MondayClient {
     return false;
   }
 
-  // Helper methods untuk data extraction
   extractDate(column) {
     console.log(`Extracting date from column:`, {
       id: column.id,
@@ -336,11 +321,9 @@ class MondayClient {
       isLinked: this.isLinkedColumn(column),
     });
 
-    // Jika ini adalah linked/mirrored column dan kosong, kembalikan "-"
     if (this.isLinkedColumn(column)) {
       console.log(`🔗 This is a linked column`);
 
-      // Coba extract dari linked value
       if (column.value && column.value !== "null" && column.value !== null) {
         try {
           const parsed = JSON.parse(column.value);
@@ -357,20 +340,17 @@ class MondayClient {
         }
       }
 
-      // Jika linked column tidak memiliki data, kembalikan "-"
       if (!column.text || column.text === "" || column.text === "-") {
         console.log(`🔗 Linked column is empty`);
         return "-";
       }
     }
 
-    // Prioritas 1: Text yang sudah diformat
     if (column.text && column.text !== "-" && column.text.trim() !== "") {
       console.log(`Using text value: ${column.text}`);
       return this.formatDate(column.text);
     }
 
-    // Prioritas 2: Value dalam format JSON
     if (column.value && column.value !== "null" && column.value !== null) {
       try {
         const parsed = JSON.parse(column.value);
@@ -383,7 +363,6 @@ class MondayClient {
           return this.formatDate(parsed.text);
         }
       } catch (e) {
-        // Jika bukan JSON, coba langsung sebagai tanggal
         if (column.value !== "-" && column.value.trim() !== "") {
           console.log(`Using raw value: ${column.value}`);
           return this.formatDate(column.value);
@@ -407,7 +386,6 @@ class MondayClient {
           return (parsed.label || parsed.text).toUpperCase();
         }
         if (parsed.index !== undefined) {
-          // Map index to status if needed
           const statusMap = {
             0: "VALID",
             1: "EXPIRED",
@@ -438,7 +416,6 @@ class MondayClient {
           certificateUrl = parsed.url;
         }
       } catch (e) {
-        // Handle non-JSON certificate links
         if (column.value !== "-" && column.value.trim() !== "") {
           certificateUrl = column.value;
         }
@@ -449,13 +426,10 @@ class MondayClient {
   }
 
   getHardcodedExpiryDate(subjectTitle) {
-    // Hanya untuk item yang BENAR-BENAR memiliki tanggal di Monday.com
     const subjectMap = {
       SMS: "Wed, Dec 29, 2027",
       TAWS: "Sun, Aug 3, 2025",
       WINDSHEAR: "Mon, Dec 15, 2025",
-      // AVSEC, CET, DG, ALAR/CFIT, CRM, MOUNTAINOUS FLYING tidak ada tanggal
-      // karena menggunakan linkage dari board lain
     };
 
     const expiry = subjectMap[subjectTitle.toUpperCase()];
@@ -494,7 +468,6 @@ class MondayClient {
   cleanCertificateUrl(url) {
     if (!url || url === "-" || url === "#") return "#";
 
-    // Remove localhost prefix if exists
     if (url.includes("localhost")) {
       const driveMatch = url.match(/https:\/\/drive\.google\.com\/[^\s]+/);
       if (driveMatch) {
@@ -502,13 +475,11 @@ class MondayClient {
       }
     }
 
-    // Extract Google Drive URL
     const driveMatch = url.match(/https:\/\/drive\.google\.com\/[^\s]+/);
     if (driveMatch) {
       return driveMatch[0];
     }
 
-    // Return original URL if it's a valid HTTP URL
     if (url.startsWith("http")) {
       return url;
     }
@@ -523,17 +494,15 @@ class MondayClient {
       let date;
 
       if (dateString.includes(",")) {
-        // Format: "Fri, May 15, 2026"
         date = new Date(dateString);
       } else if (dateString.includes("-")) {
-        // Format: "2026-05-15"
         date = new Date(dateString);
       } else {
         date = new Date(dateString);
       }
 
       if (isNaN(date.getTime())) {
-        return dateString; // Return original if parsing fails
+        return dateString;
       }
 
       return date.toLocaleDateString("id-ID", {
